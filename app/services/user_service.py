@@ -23,3 +23,14 @@ def get_user_by_id(db: Session, user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+def get_user_by_email(db: Session, email: str):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+def check_email_exists(db: Session, email: str) -> bool:
+    return db.query(User).filter(User.email == email).first() is not None

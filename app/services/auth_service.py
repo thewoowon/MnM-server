@@ -23,10 +23,17 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 
 def create_access_token(data: dict, expires_delta: timedelta):
+    print("Creating access token with data:", data)
     to_encode = data.copy()
+    print("Data to encode:", to_encode)
     expire = datetime.now(timezone.utc) + expires_delta
+    print("Token expiration time:", expire)
     to_encode.update({"exp": expire})
+    print("Final payload to encode:", to_encode)
+    print("JWT Secret Key:", JWT_SECRET_KEY)
+    print("JWT Algorithm:", JWT_ALGORITHM)
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    print("Encoded JWT:", encoded_jwt)
     return encoded_jwt
 
 
@@ -40,24 +47,12 @@ def create_refresh_token(data: dict, expires_delta: timedelta):
 
 async def google_auth(request: Request, db: Session):
     try:
+        
         data = await request.json()
-        id_token = data.get("id_token")
-
-        if not id_token:
-            raise HTTPException(status_code=400, detail="ID token is required")
-
-        # Google 서버에 idToken 검증 요청
-        try:
-            response = requests.get(GOOGLE_TOKEN_INFO_URL, params={"id_token": id_token})
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise HTTPException(
-                status_code=400, detail=f"Failed to verify token: {str(e)}"
-            )
-
-        # 검증 결과 확인
-        token_info = response.json()
-        email = token_info.get("email")
+        print("Received Google auth data:", data)
+        
+        email = data.get("email")
+        print("Extracted email from request data:", email)
 
         if not email:
             raise HTTPException(status_code=400, detail="Email is missing in token")
@@ -66,30 +61,40 @@ async def google_auth(request: Request, db: Session):
         user = db.query(User).filter(User.email == email).first()
 
         if not user:
+            print("Creating new user for email:", email)
             # 새로운 사용자 생성
             user = create_user(
                 db=db,
                 user=UserCreate(
-                    name=token_info.get("name", "Unknown"),
+                    name=data.get("name", "Unknown"),
                     email=email,
-                    profile_pic=DEFAULT_PROFILE_PIC,
+                    profile_pic=data.get("photoUrl",DEFAULT_PROFILE_PIC),
                     provider="google",
-                    provider_id=token_info.get("sub"),
+                    provider_id=data.get("sub", ""),
                 ),
             )
+        print("User found/created:", user.email)
 
         # 토큰 생성
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
+        print("Generating tokens for user:", user.email)
+
         access_token = create_access_token(
             data={"sub": user.email, "user_id": user.id},
             expires_delta=access_token_expires,
         )
+
+        print("Access token generated for user:", user.email)
         refresh_token = create_refresh_token(
             data={"sub": user.email, "user_id": user.id},
             expires_delta=refresh_token_expires,
         )
+
+        print("Generated tokens for user:", user.email)
+        print("Access Token:", access_token)
+        print("Refresh Token:", refresh_token)
 
         # Refresh Token을 DB에 저장
         existing_token = db.query(Token).filter(Token.user_id == user.id).first()
@@ -103,6 +108,8 @@ async def google_auth(request: Request, db: Session):
             db.add(new_token)
         db.commit()
 
+        print("Saved refresh token to database for user:", user.email)
+
         # 사용자 데이터 및 토큰 반환
         user_data = {
             "id": user.id,
@@ -111,6 +118,8 @@ async def google_auth(request: Request, db: Session):
             "profile_pic": user.profile_pic,
             "provider": user.provider,
         }
+
+        print("Returning user data and tokens")
 
         # RN 앱 형식에 맞게 헤더로 토큰 반환
         return JSONResponse(

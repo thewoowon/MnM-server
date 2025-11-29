@@ -12,6 +12,14 @@ from app.core.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Lifespan: Starting up...")
+    # 데이터베이스 테이블 자동 생성
+    from app.db.session import sync_engine
+    from app.db.base import Base
+    from app.models import User, Token, Movie
+
+    Base.metadata.create_all(bind=sync_engine)
+    print("✅ Database tables created successfully!")
+
     yield
     print("Lifespan: Shutting down...")
 
@@ -20,6 +28,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

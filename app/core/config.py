@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
     DEBUG: bool = True
 
+    # OpenAI 설정
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-5.1-mini"
+
     @field_validator("BACKEND_CORS_ORIGINS")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):

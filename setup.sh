@@ -33,7 +33,7 @@ fi
 
 # 5. 데이터베이스 초기화
 echo "🗄️  Initializing database..."
-python -c "from app.db.session import sync_engine; from app.db.base import Base; from app.models import User, Token; Base.metadata.create_all(bind=sync_engine)"
+python -c "from app.db.session import sync_engine; from app.db.base import Base; from app.models import User, Token, Ticket, Movie, Diary, UserTicket; Base.metadata.create_all(bind=sync_engine)"
 
 echo ""
 echo "✅ Setup complete!"

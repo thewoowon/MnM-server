@@ -13,12 +13,29 @@ from app.core.config import settings
 async def lifespan(app: FastAPI):
     print("Lifespan: Starting up...")
     # 데이터베이스 테이블 자동 생성
-    from app.db.session import sync_engine
+    from app.db.session import sync_engine, SyncSessionLocal
     from app.db.base import Base
     from app.models import User, Token, Movie, Diary, Ticket, UserTicket
 
     Base.metadata.create_all(bind=sync_engine)
     print("✅ Database tables created successfully!")
+
+    # 영화 데이터 자동 시딩 (영화가 없을 경우에만)
+    try:
+        db = SyncSessionLocal()
+        movie_count = db.query(Movie).count()
+
+        if movie_count == 0:
+            print("🎬 No movies found. Seeding movie data...")
+            from scripts.seed_movies import seed_movies_data
+            added, total = seed_movies_data(db)
+            print(f"✅ Movie seeding completed: {added} movies added, {total} total")
+        else:
+            print(f"✅ Movies already exist: {movie_count} movies in database")
+
+        db.close()
+    except Exception as e:
+        print(f"⚠️ Movie seeding failed: {e}")
 
     yield
     print("Lifespan: Shutting down...")

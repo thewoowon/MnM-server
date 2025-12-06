@@ -1315,38 +1315,59 @@ SAMPLE_MOVIES = [
 
 
 
-def seed_movies():
-    """영화 데이터 시드"""
-    db = SyncSessionLocal()
+def seed_movies_data(db_session=None):
+    """
+    영화 데이터 시드 (재사용 가능한 함수)
+
+    Args:
+        db_session: SQLAlchemy session (None이면 자동 생성)
+
+    Returns:
+        tuple: (added_count, total_count)
+    """
+    close_session = False
+    if db_session is None:
+        db_session = SyncSessionLocal()
+        close_session = True
 
     try:
         # 기존 영화 개수 확인
-        existing_count = db.query(Movie).count()
+        existing_count = db_session.query(Movie).count()
         print(f"현재 영화 개수: {existing_count}")
 
         # 영화 추가
         added_count = 0
         for movie_data in SAMPLE_MOVIES:
             # 중복 체크 (영화명 + 감독으로)
-            existing = db.query(Movie).filter(
+            existing = db_session.query(Movie).filter(
                 Movie.name == movie_data["name"],
                 Movie.director == movie_data["director"]
             ).first()
 
             if not existing:
                 movie = Movie(**movie_data)
-                db.add(movie)
+                db_session.add(movie)
                 added_count += 1
 
-        db.commit()
+        db_session.commit()
+        total_count = db_session.query(Movie).count()
         print(f"{added_count}개의 영화가 추가되었습니다.")
-        print(f"총 영화 개수: {db.query(Movie).count()}")
+        print(f"총 영화 개수: {total_count}")
+
+        return added_count, total_count
 
     except Exception as e:
         print(f"에러 발생: {e}")
-        db.rollback()
+        db_session.rollback()
+        raise
     finally:
-        db.close()
+        if close_session:
+            db_session.close()
+
+
+def seed_movies():
+    """영화 데이터 시드 (스크립트 실행용)"""
+    seed_movies_data()
 
 
 if __name__ == "__main__":

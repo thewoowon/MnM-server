@@ -4,7 +4,6 @@ from typing import List
 
 from app.dependencies import get_db
 from app.core.security import get_current_user
-from app.models.user import User
 from app.schemas.movie import (
     MovieCreate,
     MovieResponse,
@@ -21,7 +20,7 @@ router = APIRouter()
 def recommend_movies(
     request: MovieRecommendationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user_id: int = Depends(get_current_user)
 ):
     """
     일기 + purpose 기반 영화 추천
@@ -54,7 +53,7 @@ def recommend_by_keywords(
     keywords: List[str],
     top_k: int = 5,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user_id: int = Depends(get_current_user)
 ):
     """
     키워드 배열을 직접 받아서 영화 추천
@@ -72,7 +71,7 @@ def recommend_by_keywords(
 def create_movie(
     movie_data: MovieCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user_id: int = Depends(get_current_user)
 ):
     """영화 생성 (관리자용)"""
     return movie_service.create_movie(db, movie_data)
@@ -83,7 +82,7 @@ def get_all_movies(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user_id: int = Depends(get_current_user)
 ):
     """모든 영화 조회"""
     return movie_service.get_all_movies(db, skip, limit)
@@ -93,7 +92,7 @@ def get_all_movies(
 def get_movie(
     movie_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user_id: int = Depends(get_current_user)
 ):
     """영화 상세 조회"""
     return movie_service.get_movie_by_id(db, movie_id)

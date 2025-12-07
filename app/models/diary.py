@@ -11,8 +11,6 @@ class Diary(Base):
 
     # 기본 필드
     content = Column(String, nullable=False)  # 일기 내용
-    purpose = Column(String, nullable=False)  # 목적
-    mood = Column(String, nullable=True)
     diary_date = Column(Date, nullable=False, default=func.current_date())  # 일기 작성 날짜
 
     created_at = Column(DateTime, default=func.now(), nullable=False)

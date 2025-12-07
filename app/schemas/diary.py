@@ -5,8 +5,6 @@ from typing import Optional
 
 class DiaryBase(BaseModel):
     content: str
-    purpose: str
-    mood: Optional[str] = None
     diary_date: Optional[date] = None
 
 

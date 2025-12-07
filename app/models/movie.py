@@ -20,3 +20,6 @@ class Movie(Base):
 
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # 관계 설정
+    tickets = relationship("Ticket", back_populates="movie")

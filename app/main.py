@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     # 데이터베이스 테이블 자동 생성
     from app.db.session import sync_engine, SyncSessionLocal
     from app.db.base import Base
-    from app.models import User, Token, Movie, Diary, Ticket, UserTicket
+    from app.models import User, Token, Movie, Diary, Ticket
 
     Base.metadata.create_all(bind=sync_engine)
     print("✅ Database tables created successfully!")

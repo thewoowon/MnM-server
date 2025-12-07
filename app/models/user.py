@@ -20,5 +20,5 @@ class User(Base):
 
     # 관계 설정
     tokens = relationship("Token", back_populates="user")
-    user_tickets = relationship("UserTicket", back_populates="user")
+    tickets = relationship("Ticket", back_populates="user")
     diaries = relationship("Diary", back_populates="user")

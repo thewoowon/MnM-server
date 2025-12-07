@@ -29,8 +29,8 @@ def recommend_movies(
     OpenAI를 사용하여 일기에서 키워드를 추출한 후,
     키워드 매칭 점수를 기반으로 영화를 추천합니다.
     """
-    # OpenAI로 키워드 추출
-    keywords = extract_keywords_from_diary(
+    # OpenAI로 키워드 및 설명 추출
+    llm_result = extract_keywords_from_diary(
         request.diary_content,
         request.purpose
     )
@@ -38,13 +38,14 @@ def recommend_movies(
     # 키워드 기반 영화 추천
     recommended_movies = movie_service.get_recommended_movies(
         db,
-        keywords,
+        llm_result["keywords"],
         request.top_k
     )
 
     return MovieRecommendationResponse(
         movies=recommended_movies,
-        keywords=keywords
+        keywords=llm_result["keywords"],
+        explanation=llm_result["explanation"]
     )
 
 

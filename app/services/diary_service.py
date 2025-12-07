@@ -34,8 +34,6 @@ def create_diary(db: Session, user_id: int, diary_data: DiaryCreate) -> Diary:
     new_diary = Diary(
         user_id=user_id,
         content=diary_data.content,
-        purpose=diary_data.purpose,
-        mood=diary_data.mood,
         diary_date=diary_date
     )
 

@@ -35,3 +35,4 @@ class MovieRecommendationResponse(BaseModel):
     """영화 추천 응답"""
     movies: List[MovieResponse]
     keywords: List[str]  # LLM이 추출한 키워드들
+    explanation: str  # 키워드 선택 이유에 대한 따뜻한 설명

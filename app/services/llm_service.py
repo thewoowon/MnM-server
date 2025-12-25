@@ -53,25 +53,13 @@ def extract_keywords_from_diary(diary_content: str, purpose: str) -> Dict[str, a
             """
 
     try:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=settings.OPENAI_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "당신은 영화 추천을 위한 키워드 추출 전문가입니다. 사용자의 일기와 목적을 분석하여 정확한 키워드와 따뜻한 설명을 JSON 형식으로 제공합니다."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.7,
-            max_tokens=500,
-            response_format={"type": "json_object"}
+            input=prompt,
         )
 
         # JSON 응답 파싱
-        result = json.loads(response.choices[0].message.content.strip())
+        result = json.loads(response.output_text.strip())
 
         print(f"OpenAI API 응답: {result}")
 

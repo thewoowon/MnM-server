@@ -18,6 +18,9 @@ class Movie(Base):
     # 키워드 (JSON 배열로 저장)
     keywords = Column(JSON, nullable=True, default=[])
 
+    # url
+    url = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

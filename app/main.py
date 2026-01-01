@@ -8,6 +8,8 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.core.config import settings
 
+# 라이프사이클 이벤트 핸들러
+# 20251231 - 영화 데이터 구축 완료 후 자동 시딩 기능 추가
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -7,6 +7,7 @@ from app.services.user_service import (
     check_email_exists,
     get_user_by_email,
     get_user_by_id,
+    delete_user,
 )
 from app.dependencies import get_db
 from app.core.security import get_current_user
@@ -51,3 +52,14 @@ def verify_email(email: EmailStr, db: Session = Depends(get_db)):
     Check if an email is already registered
     """
     return {"exists": check_email_exists(db=db, email=email)}
+
+
+@router.delete("/me")
+def delete_current_user(
+    user_id: int = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """
+    Delete current user account
+    """
+    result = delete_user(db=db, user_id=user_id)
+    return JSONResponse(content=result, status_code=200)

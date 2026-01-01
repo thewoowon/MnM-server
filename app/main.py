@@ -16,6 +16,13 @@ async def lifespan(app: FastAPI):
     from app.db.session import sync_engine, SyncSessionLocal
     from app.db.base import Base
     from app.models import User, Token, Movie, Diary, Ticket
+    import os
+
+    # RESET_DB 환경변수가 설정되어 있으면 기존 테이블 삭제 후 재생성
+    if os.getenv("RESET_DB") == "true":
+        print("🔄 RESET_DB=true detected. Dropping all tables...")
+        Base.metadata.drop_all(bind=sync_engine)
+        print("✅ All tables dropped successfully!")
 
     Base.metadata.create_all(bind=sync_engine)
     print("✅ Database tables created successfully!")

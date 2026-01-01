@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from app.core.security import get_current_user
-from app.services.auth_service import google_auth, refresh_token_func
+from app.services.auth_service import google_auth, apple_auth, refresh_token_func
 from app.dependencies import get_db
 from app.models.token import Token
 from sqlalchemy.orm import Session
@@ -15,6 +15,14 @@ async def google(request: Request, db: Session = Depends(get_db)):
     Google login for mobile app
     """
     return await google_auth(request, db)
+
+
+@router.post("/apple")
+async def apple(request: Request, db: Session = Depends(get_db)):
+    """
+    Apple Sign In for mobile app
+    """
+    return await apple_auth(request, db)
 
 
 @router.post("/token/reissue")

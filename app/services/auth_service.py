@@ -16,10 +16,16 @@ from app.models.user import User
 from app.schemas.user import UserCreate
 from app.models.token import Token
 import os
+import base64
+import json
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+APPLE_PUBLIC_KEYS_URL = "https://appleid.apple.com/auth/keys"
 
 
 def create_access_token(data: dict, expires_delta: timedelta):
@@ -134,6 +140,180 @@ async def google_auth(request: Request, db: Session):
         print("Error:", e)
         print("Failed to verify token")
         raise HTTPException(status_code=400, detail="Invalid token")
+
+
+def verify_apple_identity_token(identity_token: str):
+    """
+    Verify Apple's identity token and extract user information
+    """
+    try:
+        # Decode the token header to get the key ID (kid)
+        unverified_header = jwt.get_unverified_header(identity_token)
+        kid = unverified_header.get("kid")
+        alg = unverified_header.get("alg")
+
+        if not kid or not alg:
+            raise HTTPException(status_code=400, detail="Invalid token header")
+
+        # Fetch Apple's public keys
+        response = requests.get(APPLE_PUBLIC_KEYS_URL)
+        apple_keys = response.json().get("keys", [])
+
+        # Find the matching public key
+        public_key = None
+        for key in apple_keys:
+            if key.get("kid") == kid:
+                # Convert JWK to PEM format
+                n = int.from_bytes(
+                    base64.urlsafe_b64decode(key["n"] + "=="), byteorder="big"
+                )
+                e = int.from_bytes(
+                    base64.urlsafe_b64decode(key["e"] + "=="), byteorder="big"
+                )
+                public_numbers = RSAPublicNumbers(e, n)
+                public_key_obj = public_numbers.public_key(default_backend())
+                public_key = public_key_obj.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                break
+
+        if not public_key:
+            raise HTTPException(status_code=400, detail="Public key not found")
+
+        # Verify and decode the token
+        decoded_token = jwt.decode(
+            identity_token,
+            public_key,
+            algorithms=[alg],
+            audience=os.getenv("APPLE_BUNDLE_ID", "com.movieandme.app"),
+        )
+
+        print("Decoded Apple token:", decoded_token)
+        return decoded_token
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Apple token has expired")
+    except jwt.InvalidTokenError as e:
+        print("Invalid Apple token:", e)
+        raise HTTPException(status_code=400, detail="Invalid Apple token")
+    except Exception as e:
+        print("Error verifying Apple token:", e)
+        raise HTTPException(status_code=400, detail="Failed to verify Apple token")
+
+
+async def apple_auth(request: Request, db: Session):
+    """
+    Apple Sign In authentication
+    """
+    try:
+        data = await request.json()
+        print("Received Apple auth data:", data)
+
+        identity_token = data.get("identityToken")
+        email = data.get("email")
+        name = data.get("name")
+
+        if not identity_token:
+            raise HTTPException(
+                status_code=400, detail="Identity token is required"
+            )
+
+        # Verify Apple's identity token
+        decoded_token = verify_apple_identity_token(identity_token)
+
+        # Extract email from token (Apple provides email in the token)
+        token_email = decoded_token.get("email")
+        apple_user_id = decoded_token.get("sub")
+
+        # Use email from request if available, otherwise use email from token
+        user_email = email or token_email
+
+        if not user_email:
+            raise HTTPException(
+                status_code=400, detail="Email not found in Apple token"
+            )
+
+        print("Apple user email:", user_email)
+        print("Apple user ID:", apple_user_id)
+
+        # Find or create user
+        user = db.query(User).filter(User.email == user_email).first()
+
+        if not user:
+            print("Creating new user for Apple email:", user_email)
+            # Create new user
+            user = create_user(
+                db=db,
+                user=UserCreate(
+                    name=name or "Apple User",
+                    email=user_email,
+                    profile_pic=DEFAULT_PROFILE_PIC,
+                    provider="apple",
+                    provider_id=apple_user_id,
+                ),
+            )
+        else:
+            print("Existing user found:", user.email)
+
+        # Generate tokens
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+        print("Generating tokens for user:", user.email)
+
+        access_token = create_access_token(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=access_token_expires,
+        )
+
+        refresh_token = create_refresh_token(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=refresh_token_expires,
+        )
+
+        print("Generated tokens for Apple user:", user.email)
+
+        # Save refresh token to database
+        existing_token = db.query(Token).filter(Token.user_id == user.id).first()
+        if existing_token:
+            existing_token.refresh_token = refresh_token
+            existing_token.is_active = True
+        else:
+            new_token = Token(
+                user_id=user.id, refresh_token=refresh_token, is_active=True
+            )
+            db.add(new_token)
+        db.commit()
+
+        print("Saved refresh token to database for Apple user:", user.email)
+
+        # Return user data and tokens
+        user_data = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "profile_pic": user.profile_pic,
+            "provider": user.provider,
+        }
+
+        print("Returning user data and tokens for Apple user")
+
+        # Return tokens in headers (matching Google auth format)
+        return JSONResponse(
+            content={"user": user_data},
+            status_code=200,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "RefreshToken": f"RefreshToken {refresh_token}",
+            },
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print("Apple auth error:", e)
+        raise HTTPException(status_code=400, detail="Apple authentication failed")
 
 
 async def refresh_token_func(request: Request, db: Session):

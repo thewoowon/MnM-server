@@ -9,6 +9,7 @@ class MovieBase(BaseModel):
     summary: str
     cast: Optional[str] = None
     keywords: Optional[List[str]] = []
+    url: Optional[str] = None
 
 
 class MovieCreate(MovieBase):
